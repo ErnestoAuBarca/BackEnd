@@ -1,0 +1,122 @@
+import tkinter
+from tkinter import ttk, filedialog
+from collections import Counter
+import heapq
+import os
+
+def abrir_archivo():
+    archivo = filedialog.askopenfilename(filetypes=(("Archivos de texto", "*.txt"), ("Todos los archivos", "*.*")))
+    if archivo:
+        with open(archivo, 'r') as f:
+            contenido = f.read()
+            caracteres = contar_carac(contenido)
+            frecuencia = ordenar_caracteres(contenido)
+            mostrar_resultados(caracteres, frecuencia)
+
+def comprimir_archivo():
+    archivo_origen = filedialog.askopenfilename(filetypes=(("Archivos de texto", "*.txt"), ("Todos los archivos", "*.*")))
+    if archivo_origen:
+        with open(archivo_origen, 'r') as f:
+            contenido = f.read()
+            caracteres, frecuencia = contar_y_ordenar_caracteres(contenido)
+            arbol_huffman = construir_arbol_huffman(frecuencia)
+            codigos = asignar_codigos_huffman(arbol_huffman)
+            contenido_comprimido = comprimir_contenido(contenido, codigos)
+            archivo_destino = archivo_origen + ".huff"
+            with open(archivo_destino, 'w') as f_comp:
+                f_comp.write(contenido_comprimido)
+            mostrar_mensaje(f"Archivo comprimido guardado como {archivo_destino}")
+
+def descomprimir_archivo():
+    archivo_comprimido = filedialog.askopenfilename(filetypes=(("Archivos comprimidos", "*.huff"), ("Todos los archivos", "*.*")))
+    if archivo_comprimido:
+        with open(archivo_comprimido, 'r') as f:
+            contenido_comprimido = f.read()
+            archivo_destino = os.path.splitext(archivo_comprimido)[0] + "_descomprimido.txt"
+            contenido_descomprimido = descomprimir_contenido(contenido_comprimido)
+            with open(archivo_destino, 'w') as f_descomp:
+                f_descomp.write(contenido_descomprimido)
+            mostrar_mensaje(f"Archivo descomprimido guardado como {archivo_destino}")
+
+def contar_carac(mensaje):
+    return len(mensaje)
+
+def ordenar_caracteres(mensaje):
+    carac_rep = Counter(mensaje)
+    return sorted(carac_rep.items(), key=lambda x: x[1], reverse=True)
+
+def mostrar_resultados(caracteres, frecuencia):
+    ventana_resultados = tkinter.Tk()
+    ventana_resultados.title("Resultados")
+
+    ttk.Label(ventana_resultados, text=f"Número de caracteres: {caracteres}").pack()
+    ttk.Label(ventana_resultados, text="Frecuencia de caracteres:").pack()
+    for caracter, freq in frecuencia:
+        ttk.Label(ventana_resultados, text=f"Caracter: {caracter}, Frecuencia: {freq}").pack()
+
+    ventana_resultados.mainloop()
+
+def contar_y_ordenar_caracteres(mensaje):
+    caracteres = contar_carac(mensaje)
+    frecuencia = ordenar_caracteres(mensaje)
+    return caracteres, frecuencia
+
+def construir_arbol_huffman(frecuencia):
+    heap = [[frecuencia[i], [i, ""]] for i in frecuencia]
+    heapq.heapify(heap)
+    while len(heap) > 1:
+        izq = heapq.heappop(heap)
+        der = heapq.heappop(heap)
+        for pair in izq[1:]:
+            pair[1] = '0' + pair[1]
+        for pair in der[1:]:
+            pair[1] = '1' + pair[1]
+        heapq.heappush(heap, [izq[0] + der[0]] + izq[1:] + der[1:])
+    return heap[0]
+
+def asignar_codigos_huffman(arbol_huffman):
+    return {caracter: codigo for caracter, codigo in arbol_huffman[1:]}
+
+def comprimir_contenido(contenido, codigos):
+    contenido_comprimido = ''.join(codigos[caracter] for caracter in contenido)
+    return contenido_comprimido
+
+def descomprimir_contenido(contenido_comprimido):
+    contenido_descomprimido = ""
+    codigo_actual = ""
+    for bit in contenido_comprimido:
+        codigo_actual += bit
+        if codigo_actual in codigos_invertidos:
+            caracter = codigos_invertidos[codigo_actual]
+            contenido_descomprimido += caracter
+            codigo_actual = ""
+    return contenido_descomprimido
+
+def mostrar_mensaje(mensaje):
+    ventana_mensaje = tkinter.Tk()
+    ventana_mensaje.title("Mensaje")
+    ttk.Label(ventana_mensaje, text=mensaje).pack()
+    ventana_mensaje.mainloop()
+
+# Crear ventana
+ventana = tkinter.Tk()
+ventana.title("Compresión de Archivos")
+
+frm = ttk.Frame(ventana, padding=10)
+frm.grid(column=0, row=0, sticky=(tkinter.W, tkinter.E, tkinter.N, tkinter.S))
+frm.columnconfigure(0, weight=1)
+frm.rowconfigure(0, weight=1)
+
+ttk.Label(frm, text="Selecciona un archivo:").grid(column=0, row=0, pady=5)
+boton_examinar = ttk.Button(frm, text="Examinar", command=abrir_archivo)
+boton_examinar.grid(column=0, row=1, pady=5)
+
+ttk.Label(frm, text="Comprimir archivo:").grid(column=0, row=2, pady=5)
+boton_comprimir = ttk.Button(frm, text="Comprimir", command=comprimir_archivo)
+boton_comprimir.grid(column=0, row=3, pady=5)
+
+ttk.Label(frm, text="Descomprimir archivo:").grid(column=0, row=4, pady=5)
+boton_descomprimir = ttk.Button(frm, text="Descomprimir", command=descomprimir_archivo)
+boton_descomprimir.grid(column=0, row=5, pady=5)
+
+ventana.mainloop()
